@@ -105,7 +105,7 @@ else
   echo "    Contact rune@studiox.no to request access."
   echo ""
   ask "Continue anyway? [y/N] "
-  read -r REPLY
+  read -r REPLY < /dev/tty
   if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     echo "    Aborted."
     exit 1
@@ -141,7 +141,7 @@ cat <<'EOF'
 EOF
 
 ask "Enter choice [1-6]: "
-read -r ROLE
+read -r ROLE < /dev/tty
 
 PLUGINS_TO_INSTALL=()
 case "$ROLE" in
@@ -167,7 +167,7 @@ case "$ROLE" in
     echo ""
     for p in sx-core sx-business pa-business sx-leadership; do
       ask "Install ${p}? [y/N] "
-      read -r REPLY
+      read -r REPLY < /dev/tty
       if [[ "$REPLY" =~ ^[Yy]$ ]]; then
         PLUGINS_TO_INSTALL+=("$p")
       fi
@@ -212,7 +212,7 @@ if [[ -f ~/Library/LaunchAgents/no.studiox.plugin-updater.plist ]]; then
   ok "Auto-update already configured"
 else
   ask "Set up daily automatic plugin updates? [Y/n] "
-  read -r REPLY
+  read -r REPLY < /dev/tty
   if [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
     # Run the auto-update installer from sx-core
     UPDATER_SCRIPT=$(find ~/.claude/plugins/cache/sx-core -name "install-updater.sh" 2>/dev/null | head -1)
