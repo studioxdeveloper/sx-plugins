@@ -65,13 +65,15 @@ claude plugin install pa-business@studio-x-plugins
 claude plugin install sx-leadership@studio-x-plugins
 ```
 
-In Claude Desktop:
-1. Open Customize → Plugins → Add marketplace
-2. Paste `studioxdeveloper/sx-plugins`
-3. Click Sync
-4. Pick the plugins you want from the list and click Install
+### About Claude Desktop
 
-> **If you get a sync error in Claude Desktop**, your machine likely needs SSH keys set up for GitHub. The `install.sh` script avoids this entirely by using HTTPS authentication.
+**You do NOT need to add the marketplace via Claude Desktop's UI.**
+
+Claude Code and Claude Desktop share the same plugin directory (`~/.claude/plugins/`). When you install plugins via the terminal (using the installer script or `claude plugin install`), they automatically become available in Claude Desktop after you restart it.
+
+> **Why "Add marketplace" in Desktop UI fails with sync error:** Claude Desktop's UI does not authenticate to GitHub, so it cannot validate the private source repos that this marketplace points to. The CLI works because `gh auth setup-git` configures git credentials. This is a limitation of Claude Desktop, not a configuration issue on your end.
+
+**Just restart Claude Desktop after running the installer**, then go to Customize → Plugins to verify the plugins are listed. You don't need to interact with "Add marketplace" at all.
 
 ---
 
