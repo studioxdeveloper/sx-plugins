@@ -6,7 +6,9 @@ This repo is public, but most of the plugins it lists are private and require au
 
 ---
 
-## ⚡ Recommended: One-shot installer
+## Two installation paths
+
+### Path A — Claude Code (terminal users)
 
 The fastest way to get everything set up — handles GitHub authentication, marketplace registration, plugin installation, and auto-updates:
 
@@ -17,6 +19,34 @@ bash <(curl -fsSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/
 The script asks for your role (developer / PM / sales / partner) and installs the right plugins for you. Takes 2 minutes. Safe to run multiple times.
 
 **No SSH setup required** — uses HTTPS via GitHub CLI authentication.
+
+### Path B — Claude Desktop only (no terminal)
+
+Claude Desktop's "Add marketplace" UI cannot authenticate to private GitHub repos, so it cannot install our plugins via marketplace URL. Instead, download the ZIP files from the GitHub Releases on each plugin repo and upload them via Claude Desktop UI.
+
+**Latest releases:**
+
+| Plugin | Latest release | Download |
+|--------|---------------|----------|
+| sx-core | v1.12.4 | [sx-core-v1.12.4.zip](https://github.com/studioxdeveloper/sx-core/releases/latest) |
+| sx-business | v1.5.2 | [sx-business-v1.5.2.zip](https://github.com/studioxdeveloper/sx-business/releases/latest) |
+| sx-leadership | v1.2.2 (RESTRICTED) | [sx-leadership-v1.2.2.zip](https://github.com/studioxdeveloper/sx-leadership/releases/latest) |
+| pa-business | (release pending) | studioxdeveloper/pa-business/releases |
+
+**Install steps:**
+
+1. Download the zip(s) you need (you must have GitHub access to each plugin's source repo)
+2. Open Claude Desktop → **Customize → Plugins → Personal → Local uploads**
+3. Click the **+** icon → **Upload plugin**
+4. Select the downloaded zip file
+5. The plugin appears in your plugin menu under "Local uploads"
+6. Restart Claude Desktop to activate skills
+
+Repeat for each plugin you want to install.
+
+> **For non-developers without GitHub access:** Contact rune@studiox.no to receive zip files via Slack or Dropbox.
+
+**Updates:** When a new version is released, download the new zip and upload it again. The newer version replaces the older one in Claude Desktop.
 
 ---
 
