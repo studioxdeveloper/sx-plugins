@@ -211,12 +211,26 @@ ok "Plugins to install: ${PLUGINS_TO_INSTALL[*]}"
 step "Installing plugins"
 
 for plugin in "${PLUGINS_TO_INSTALL[@]}"; do
-  if claude plugin list 2>/dev/null | grep -q "${plugin}@"; then
-    echo "    ${plugin} already installed — updating..."
-    claude plugin update "${plugin}@studio-x-plugins" 2>&1 | tail -1 || \
-    claude plugin update "${plugin}@${plugin}" 2>&1 | tail -1 || \
-    warn "Could not update ${plugin} (may need manual intervention)"
-    ok "${plugin} updated"
+  # Find ANY existing installation of this plugin (regardless of marketplace).
+  # The format is "<plugin>@<marketplace>" so we look for lines that start with
+  # the plugin name followed by @.
+  existing_id=$(claude plugin list 2>/dev/null | grep -oE "${plugin}@[a-zA-Z0-9_-]+" | head -1)
+
+  if [[ -n "$existing_id" ]]; then
+    echo "    ${plugin} already installed as ${existing_id} — updating..."
+    if claude plugin update "${existing_id}" 2>&1 | tail -1; then
+      ok "${plugin} updated (still on ${existing_id})"
+      # If it's not from the new central marketplace, hint at migration
+      if [[ "$existing_id" != "${plugin}@studio-x-plugins" ]]; then
+        echo "      ℹ Tip: This plugin is from the old marketplace. To migrate to the central one:"
+        echo "        claude plugin uninstall ${existing_id}"
+        echo "        claude plugin install ${plugin}@studio-x-plugins"
+      fi
+    else
+      err "Could not update ${plugin} (id: ${existing_id})"
+      echo "      Try manually: claude plugin update ${existing_id}"
+      echo "      Or reinstall:  claude plugin uninstall ${existing_id} && claude plugin install ${plugin}@studio-x-plugins"
+    fi
   else
     echo "    Installing ${plugin}..."
     if claude plugin install "${plugin}@studio-x-plugins" 2>&1 | tail -3; then
