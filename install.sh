@@ -3,7 +3,7 @@
 # https://github.com/studioxdeveloper/sx-plugins
 #
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh | bash
+#   bash <(curl -fsSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh)
 #
 # This script:
 #   1. Checks that gh CLI and claude CLI are installed (installs via Homebrew if missing)
