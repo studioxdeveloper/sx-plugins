@@ -28,10 +28,10 @@ Claude Desktop's "Add marketplace" UI cannot authenticate to private GitHub repo
 
 | Plugin | Latest release | Download |
 |--------|---------------|----------|
-| sx-core | v1.12.4 | [sx-core-v1.12.4.zip](https://github.com/studioxdeveloper/sx-core/releases/latest) |
-| sx-business | v1.5.2 | [sx-business-v1.5.2.zip](https://github.com/studioxdeveloper/sx-business/releases/latest) |
-| sx-leadership | v1.2.2 (RESTRICTED) | [sx-leadership-v1.2.2.zip](https://github.com/studioxdeveloper/sx-leadership/releases/latest) |
-| pa-business | (release pending) | studioxdeveloper/pa-business/releases |
+| sx-core | v1.12.4 | [sx-core releases](https://github.com/studioxdeveloper/sx-core/releases/latest) |
+| sx-business | v1.5.2 | [sx-business releases](https://github.com/studioxdeveloper/sx-business/releases/latest) |
+| pa-business | v1.2.1 | [pa-business releases](https://github.com/studioxdeveloper/pa-business/releases/latest) |
+| sx-leadership | v1.2.2 (RESTRICTED) | [sx-leadership releases](https://github.com/studioxdeveloper/sx-leadership/releases/latest) |
 
 **Install steps:**
 
