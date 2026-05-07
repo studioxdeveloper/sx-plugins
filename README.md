@@ -6,9 +6,28 @@ This repo is public, but most of the plugins it lists are private and require au
 
 ---
 
+## ⚡ Recommended: One-shot installer
+
+The fastest way to get everything set up — handles GitHub authentication, marketplace registration, plugin installation, and auto-updates:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh | bash
+```
+
+The script asks for your role (developer / PM / sales / partner) and installs the right plugins for you. Takes 2 minutes. Safe to run multiple times.
+
+**No SSH setup required** — uses HTTPS via GitHub CLI authentication.
+
+---
+
 ## What's here
 
-This repo only contains a `.claude-plugin/marketplace.json` that points to the four actual plugin repos. The plugin code itself lives in separate private repos:
+This repo contains:
+- `.claude-plugin/marketplace.json` — points to the four actual plugin repos
+- `install.sh` — one-shot installer (recommended for new users)
+- This README
+
+The plugin code itself lives in separate private repos:
 
 | Plugin | What it includes | Source repo |
 |--------|------------------|-------------|
@@ -19,7 +38,7 @@ This repo only contains a `.claude-plugin/marketplace.json` that points to the f
 
 ---
 
-## Installation
+## Manual installation (if the installer doesn't fit)
 
 ### Step 1: Add the marketplace ONCE
 
@@ -51,6 +70,8 @@ In Claude Desktop:
 2. Paste `studioxdeveloper/sx-plugins`
 3. Click Sync
 4. Pick the plugins you want from the list and click Install
+
+> **If you get a sync error in Claude Desktop**, your machine likely needs SSH keys set up for GitHub. The `install.sh` script avoids this entirely by using HTTPS authentication.
 
 ---
 
