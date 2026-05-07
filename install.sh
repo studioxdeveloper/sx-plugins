@@ -143,42 +143,44 @@ EOF
 ask "Enter choice [1-6]: "
 read -r ROLE < /dev/tty
 
+# Strip all whitespace and non-printable chars (handles terminal weirdness, paste artifacts)
+ROLE="${ROLE//[[:space:]]/}"
+ROLE="${ROLE//$'\r'/}"
+ROLE="${ROLE//$'\n'/}"
+
 PLUGINS_TO_INSTALL=()
-case "$ROLE" in
-  1|2)
-    PLUGINS_TO_INSTALL=("sx-core" "sx-business")
-    ROLE_NAME="STUDIO X Norway"
-    ;;
-  3)
-    PLUGINS_TO_INSTALL=("sx-core" "sx-business" "sx-leadership")
-    ROLE_NAME="STUDIO X Sales/Leadership"
-    ;;
-  4|5)
-    PLUGINS_TO_INSTALL=("sx-core" "pa-business")
-    ROLE_NAME="Pettersson Apps"
-    ;;
-  6)
-    echo ""
-    echo "    Available plugins:"
-    echo "      • sx-core        — 105 technical skills (recommended for everyone)"
-    echo "      • sx-business    — 32 Norwegian business skills"
-    echo "      • pa-business    — 24 English business skills (Pettersson Apps)"
-    echo "      • sx-leadership  — 5 restricted pricing skills (leadership/sales only)"
-    echo ""
-    for p in sx-core sx-business pa-business sx-leadership; do
-      ask "Install ${p}? [y/N] "
-      read -r REPLY < /dev/tty
-      if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        PLUGINS_TO_INSTALL+=("$p")
-      fi
-    done
-    ROLE_NAME="Custom"
-    ;;
-  *)
-    err "Invalid choice. Aborted."
-    exit 1
-    ;;
-esac
+if [[ "$ROLE" == "1" || "$ROLE" == "2" ]]; then
+  PLUGINS_TO_INSTALL=("sx-core" "sx-business")
+  ROLE_NAME="STUDIO X Norway"
+elif [[ "$ROLE" == "3" ]]; then
+  PLUGINS_TO_INSTALL=("sx-core" "sx-business" "sx-leadership")
+  ROLE_NAME="STUDIO X Sales/Leadership"
+elif [[ "$ROLE" == "4" || "$ROLE" == "5" ]]; then
+  PLUGINS_TO_INSTALL=("sx-core" "pa-business")
+  ROLE_NAME="Pettersson Apps"
+elif [[ "$ROLE" == "6" ]]; then
+  echo ""
+  echo "    Available plugins:"
+  echo "      • sx-core        — 105 technical skills (recommended for everyone)"
+  echo "      • sx-business    — 32 Norwegian business skills"
+  echo "      • pa-business    — 24 English business skills (Pettersson Apps)"
+  echo "      • sx-leadership  — 5 restricted pricing skills (leadership/sales only)"
+  echo ""
+  for p in sx-core sx-business pa-business sx-leadership; do
+    ask "Install ${p}? [y/N] "
+    read -r REPLY < /dev/tty
+    REPLY="${REPLY//[[:space:]]/}"
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+      PLUGINS_TO_INSTALL+=("$p")
+    fi
+  done
+  ROLE_NAME="Custom"
+else
+  err "Invalid choice: '${ROLE}' (length: ${#ROLE})"
+  echo "    Expected 1, 2, 3, 4, 5, or 6"
+  echo "    Hex dump of input: $(printf '%s' "$ROLE" | xxd 2>/dev/null | head -1)"
+  exit 1
+fi
 
 echo ""
 ok "Role: ${ROLE_NAME}"
