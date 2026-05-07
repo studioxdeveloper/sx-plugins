@@ -16,6 +16,25 @@
 
 set -e  # Exit on error
 
+# ===== Sanity check: can we read interactive input? =====
+# This script needs to ask the user questions. If stdin and /dev/tty
+# are both unavailable, abort early with a clear message.
+if [[ ! -e /dev/tty ]] && ! [ -t 0 ]; then
+  echo "ERROR: This script needs an interactive terminal." >&2
+  echo "       Run it with: bash <(curl -sSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh)" >&2
+  exit 1
+fi
+
+# Helper to read input — tries /dev/tty first, falls back to stdin
+read_input() {
+  local var_name="$1"
+  if [[ -e /dev/tty ]]; then
+    read -r "$var_name" < /dev/tty
+  else
+    read -r "$var_name"
+  fi
+}
+
 # ===== Visual helpers =====
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -105,7 +124,7 @@ else
   echo "    Contact rune@studiox.no to request access."
   echo ""
   ask "Continue anyway? [y/N] "
-  read -r REPLY < /dev/tty
+  read_input REPLY
   if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     echo "    Aborted."
     exit 1
@@ -141,7 +160,7 @@ cat <<'EOF'
 EOF
 
 ask "Enter choice [1-6]: "
-read -r ROLE < /dev/tty
+read_input ROLE
 
 # Strip all whitespace and non-printable chars (handles terminal weirdness, paste artifacts)
 ROLE="${ROLE//[[:space:]]/}"
@@ -168,7 +187,7 @@ elif [[ "$ROLE" == "6" ]]; then
   echo ""
   for p in sx-core sx-business pa-business sx-leadership; do
     ask "Install ${p}? [y/N] "
-    read -r REPLY < /dev/tty
+    read_input REPLY
     REPLY="${REPLY//[[:space:]]/}"
     if [[ "$REPLY" =~ ^[Yy]$ ]]; then
       PLUGINS_TO_INSTALL+=("$p")
@@ -214,7 +233,7 @@ if [[ -f ~/Library/LaunchAgents/no.studiox.plugin-updater.plist ]]; then
   ok "Auto-update already configured"
 else
   ask "Set up daily automatic plugin updates? [Y/n] "
-  read -r REPLY < /dev/tty
+  read_input REPLY
   if [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
     # Run the auto-update installer from sx-core
     UPDATER_SCRIPT=$(find ~/.claude/plugins/cache/sx-core -name "install-updater.sh" 2>/dev/null | head -1)

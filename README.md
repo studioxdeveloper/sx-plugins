@@ -11,7 +11,7 @@ This repo is public, but most of the plugins it lists are private and require au
 The fastest way to get everything set up — handles GitHub authentication, marketplace registration, plugin installation, and auto-updates:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh)
 ```
 
 The script asks for your role (developer / PM / sales / partner) and installs the right plugins for you. Takes 2 minutes. Safe to run multiple times.
