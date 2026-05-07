@@ -1,0 +1,55 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "studio-x-plugins",
+  "description": "STUDIO X — alle plugins på ett sted. Velg det du trenger basert på rolle og team.",
+  "owner": {
+    "name": "STUDIO X AS",
+    "email": "appdev@studiox.no"
+  },
+  "plugins": [
+    {
+      "name": "sx-core",
+      "description": "STUDIO X core toolkit — 105 universal technical skills, 41 agents, 4 hooks for all teams. English content with bilingual triggers.",
+      "source": {
+        "source": "github",
+        "repo": "studioxdeveloper/sx-core",
+        "path": "plugins/sx-core"
+      },
+      "category": "development",
+      "homepage": "https://github.com/studioxdeveloper/sx-core"
+    },
+    {
+      "name": "sx-business",
+      "description": "STUDIO X norske forretnings-skills — 32 skills for salg, estimering, prosjektledelse, maler og kundeleveranser. KUN for STUDIO X-team i Norge.",
+      "source": {
+        "source": "github",
+        "repo": "studioxdeveloper/sx-business",
+        "path": "plugins/sx-business"
+      },
+      "category": "business",
+      "homepage": "https://github.com/studioxdeveloper/sx-business"
+    },
+    {
+      "name": "pa-business",
+      "description": "Partner business toolkit — 24 English skills for partner teams (Pettersson Apps). Estimation in T-shirt sizes, project management, proposals, templates.",
+      "source": {
+        "source": "github",
+        "repo": "studioxdeveloper/pa-business",
+        "path": "plugins/pa-business"
+      },
+      "category": "business",
+      "homepage": "https://github.com/studioxdeveloper/pa-business"
+    },
+    {
+      "name": "sx-leadership",
+      "description": "STUDIO X leadership pricing system — 5 RESTRICTED skills for size→kr conversion, polish/QA phase pricing, and proposal generation. Leadership and sales only.",
+      "source": {
+        "source": "github",
+        "repo": "studioxdeveloper/sx-leadership",
+        "path": "plugins/sx-leadership"
+      },
+      "category": "business",
+      "homepage": "https://github.com/studioxdeveloper/sx-leadership"
+    }
+  ]
+}
