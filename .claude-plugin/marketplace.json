@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "studio-x-plugins",
-  "description": "STUDIO X — alle plugins på ett sted. Velg det du trenger basert på rolle og team.",
+  "description": "STUDIO X — all plugins in one place. Pick what you need based on role and team.",
   "owner": {
     "name": "STUDIO X AS",
     "email": "appdev@studiox.no"
@@ -20,7 +20,7 @@
     },
     {
       "name": "sx-business",
-      "description": "STUDIO X norske forretnings-skills — 32 skills for salg, estimering, prosjektledelse, maler og kundeleveranser. KUN for STUDIO X-team i Norge.",
+      "description": "STUDIO X Norwegian business skills — 32 skills for sales, estimation, project management, templates, and client deliverables. STUDIO X Norway team only.",
       "source": {
         "source": "github",
         "repo": "studioxdeveloper/sx-business",

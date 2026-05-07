@@ -1,28 +1,28 @@
 # STUDIO X Plugin Marketplace
 
-> **Dette repoet er IKKE en plugin.** Det er en marketplace-katalog som lister alle STUDIO X plugins.
+> **This repo is NOT a plugin.** It's a marketplace catalog that lists all STUDIO X plugins.
 
-**Status:** Aktiv — sentralisert plugin-discovery for hele organisasjonen.
+**Status:** Active — centralized plugin discovery for the entire organization.
 
 ---
 
-## Repo-struktur
+## Repo structure
 
 ```
 sx-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json    <- Listing av alle 4 plugins
+│   └── marketplace.json    <- Listing of all 4 plugins
 ├── CLAUDE.md
 └── README.md
 ```
 
-Det er bevisst MINIMAL — dette er ren konfigurasjon, ingen kode.
+Intentionally MINIMAL — this is pure configuration, no code.
 
 ---
 
-## Hvordan marketplace.json fungerer
+## How marketplace.json works
 
-Hver entry under `plugins` peker på en EKSTERN repo som inneholder den faktiske plugin-koden:
+Each entry under `plugins` points to an EXTERNAL repo that contains the actual plugin code:
 
 ```json
 {
@@ -35,33 +35,42 @@ Hver entry under `plugins` peker på en EKSTERN repo som inneholder den faktiske
 }
 ```
 
-Dette lar oss ha:
-- Én sentralisert oppdagelse-katalog (dette repoet)
-- Distribuert kodebase (hvert plugin har eget repo, egen versjonering, egen branch protection)
-- Granular GitHub-tilgangskontroll (sx-leadership-repo kan være låst til kun Rune+salg, mens sx-core er åpen for alle developers)
+This pattern gives us:
+
+- **Centralized discovery** — one catalog (this repo)
+- **Distributed codebases** — each plugin has its own repo, version, and branch protection
+- **Granular GitHub access control** — sx-leadership can be locked to Rune+sales, while sx-core is open to all developers
 
 ---
 
-## Når oppdatere dette repoet
+## Visibility
 
-| Endring | Når |
-|---------|-----|
-| Nytt plugin i organisasjonen | Legg til i `plugins`-array |
-| Plugin omdøpt eller flyttet | Oppdater `repo` eller `path` |
-| Plugin avviklet | Fjern entry (eller marker som deprecated) |
-| Beskrivelse av plugin endret | Oppdater `description` |
+This repo is **public** so that Claude Desktop's "Add marketplace" UI can fetch it without GitHub authentication. The underlying plugin repos remain private, controlled by per-repo collaborator access.
 
-**Aldri push pluginens egne versjons-bumps hit.** Plugins versjoneres i sine egne repos.
+This repo contains no proprietary code, only pointers — making it public has no security cost.
 
 ---
 
-## Distribusjon
+## When to update this repo
 
-| Plattform | Metode |
-|-----------|--------|
-| Claude Code | `claude plugin marketplace add studioxdeveloper/sx-plugins` |
+| Change | When |
+|--------|------|
+| New plugin in the organization | Add an entry to the `plugins` array |
+| Plugin renamed or moved | Update `repo` or `path` |
+| Plugin retired | Remove the entry (or mark as deprecated) |
+| Plugin description changed | Update `description` |
+
+**Never push the plugins' own version bumps here.** Plugins are versioned in their own source repos.
+
+---
+
+## Distribution
+
+| Platform | Method |
+|----------|--------|
+| Claude Code (CLI) | `claude plugin marketplace add studioxdeveloper/sx-plugins` |
 | Claude Desktop | Customize → Plugins → Add marketplace → `studioxdeveloper/sx-plugins` |
 
 ---
 
-*STUDIO X AS — Privat og konfidensielt*
+*STUDIO X AS — Discovery layer is public. Plugin source code is private.*

@@ -1,89 +1,89 @@
-# STUDIO X Plugins — Sentral Marketplace
+# STUDIO X Plugins — Central Marketplace
 
-> Én marketplace, fire plugins. Legg til denne ÉN gang i Claude Code eller Claude Desktop, og du kan installere det du trenger fra ett sted.
+> One marketplace, four plugins. Add this once in Claude Code or Claude Desktop, and you can install whichever plugins you need from a single place.
 
-Privat repo — krever tilgang til `studioxdeveloper` GitHub-organisasjonen.
-
----
-
-## Hva ligger her
-
-Dette repoet inneholder kun en `.claude-plugin/marketplace.json` som peker på de fire faktiske plugin-repoene. Selve plugin-koden lever i sine egne repos:
-
-| Plugin | Hva | Repo |
-|--------|-----|------|
-| **sx-core** | 105 tekniske skills + 41 agenter + 4 hooks | studioxdeveloper/sx-core |
-| **sx-business** | 32 norske forretnings-skills (kun STUDIO X i Norge) | studioxdeveloper/sx-business |
-| **pa-business** | 24 engelske forretnings-skills (kun Pettersson Apps) | studioxdeveloper/pa-business |
-| **sx-leadership** | 5 begrensede prising-skills (kun ledelse/salg) | studioxdeveloper/sx-leadership |
+This repo is public, but most of the plugins it lists are private and require authorized GitHub access to the `studioxdeveloper` organization.
 
 ---
 
-## Installasjon
+## What's here
 
-### Steg 1: Legg til marketplacen ÉN gang
+This repo only contains a `.claude-plugin/marketplace.json` that points to the four actual plugin repos. The plugin code itself lives in separate private repos:
+
+| Plugin | What it includes | Source repo |
+|--------|------------------|-------------|
+| **sx-core** | 105 technical skills + 41 agents + 4 hooks | studioxdeveloper/sx-core |
+| **sx-business** | 32 Norwegian business skills (STUDIO X Norway only) | studioxdeveloper/sx-business |
+| **pa-business** | 24 English business skills (Pettersson Apps only) | studioxdeveloper/pa-business |
+| **sx-leadership** | 5 restricted pricing skills (leadership/sales only) | studioxdeveloper/sx-leadership |
+
+---
+
+## Installation
+
+### Step 1: Add the marketplace ONCE
 
 ```bash
 claude plugin marketplace add studioxdeveloper/sx-plugins
 ```
 
-Etter dette er alle fire plugins synlige i Claude Code og Claude Desktop sin plugin-meny.
+After this, all four plugins are visible in the Claude Code and Claude Desktop plugin menus.
 
-### Steg 2: Installer det du trenger
+### Step 2: Install what you need
 
-I terminal (Claude Code):
+In your terminal (Claude Code):
 ```bash
-# Alle utviklere og PMs:
+# All developers and PMs:
 claude plugin install sx-core@studio-x-plugins
 
-# STUDIO X-team i Norge:
+# STUDIO X Norway team:
 claude plugin install sx-business@studio-x-plugins
 
-# Pettersson Apps:
+# Pettersson Apps team:
 claude plugin install pa-business@studio-x-plugins
 
-# Kun ledelse/salg (krever spesifikk GitHub-tilgang):
+# Leadership/sales only (requires specific GitHub access):
 claude plugin install sx-leadership@studio-x-plugins
 ```
 
-I Claude Desktop:
-1. Åpne Customize → Plugins → Add marketplace
-2. Lim inn `studioxdeveloper/sx-plugins`
-3. Klikk Sync
-4. Velg pluginene du vil installere fra listen
+In Claude Desktop:
+1. Open Customize → Plugins → Add marketplace
+2. Paste `studioxdeveloper/sx-plugins`
+3. Click Sync
+4. Pick the plugins you want from the list and click Install
 
 ---
 
-## Hvem installerer hva
+## Who installs what
 
-| Rolle | sx-core | sx-business | pa-business | sx-leadership |
-|-------|:-------:|:-----------:|:-----------:|:-------------:|
-| STUDIO X-utvikler (Norge) | ✓ | ✓ | – | – |
-| STUDIO X PM (Norge) | ✓ | ✓ | – | – |
-| STUDIO X salg | ✓ | ✓ | – | ✓ |
-| STUDIO X ledelse (Rune) | ✓ | ✓ | – | ✓ |
-| Pettersson Apps utvikler | ✓ | – | ✓ | – |
+| Role | sx-core | sx-business | pa-business | sx-leadership |
+|------|:-------:|:-----------:|:-----------:|:-------------:|
+| STUDIO X developer (Norway) | ✓ | ✓ | – | – |
+| STUDIO X PM (Norway) | ✓ | ✓ | – | – |
+| STUDIO X sales | ✓ | ✓ | – | ✓ |
+| STUDIO X leadership (Rune) | ✓ | ✓ | – | ✓ |
+| Pettersson Apps developer | ✓ | – | ✓ | – |
 | Pettersson Apps PM | ✓ | – | ✓ | – |
 
-**Tilgangskontroll**: GitHub-tilgang per repo styrer hvem som faktisk kan installere hva. Pettersson Apps får tilgang til sx-core og pa-business, men ikke sx-business eller sx-leadership.
+**Access control**: GitHub permissions on each underlying source repo control who can actually install what. Pettersson Apps gets access to `sx-core` and `pa-business`, but not `sx-business` or `sx-leadership`. Listing plugins here does not grant access to the source code.
 
 ---
 
-## Oppdateringer
+## Updates
 
-Pluginer hentet fra denne marketplacen oppdateres via:
+Plugins installed from this marketplace are kept up to date with:
 
 ```bash
 claude plugin update --all
 ```
 
-Eller automatisk via auto-update launchd-agenten (se sx-core/skills/sx-auto-update for oppsett).
+Or automatically via the auto-update launchd agent (see `sx-core/skills/sx-auto-update` for setup).
 
 ---
 
-## Hvordan dette skiller seg fra å installere fra hvert enkelt repo
+## Why this exists
 
-Tidligere måtte brukeren legge til 4 separate marketplaces:
+Before this central marketplace, users had to add four separate marketplaces:
 
 ```bash
 claude plugin marketplace add studioxdeveloper/sx-core
@@ -92,19 +92,31 @@ claude plugin marketplace add studioxdeveloper/pa-business
 claude plugin marketplace add studioxdeveloper/sx-leadership
 ```
 
-Nå er det én kommando, og pluginene er synlige i ett valg-grensesnitt.
+Now it's one command, and all plugins are visible in a single picker UI. Less friction for new team members and partners.
 
 ---
 
-## Vedlikehold (intern)
+## Maintenance (internal)
 
-Når en ny plugin skal legges til i listen:
+When a new plugin should be added to the listing:
 
-1. Rediger `.claude-plugin/marketplace.json`
-2. Legg til ny entry i `plugins`-arrayet
-3. Commit og push til main
-4. Brukere får den automatisk neste gang de gjør `claude plugin marketplace update`
+1. Edit `.claude-plugin/marketplace.json`
+2. Add a new entry to the `plugins` array
+3. Commit and push to main
+4. Users pick it up automatically the next time they run `claude plugin marketplace update`
 
 ---
 
-*STUDIO X AS — Privat og konfidensielt*
+## Why this repo is public while the plugin repos are private
+
+This repo only contains pointers (plugin names + URLs). It contains no proprietary code, no pricing logic, no skill content. Making it public means:
+
+- Claude Desktop's "Add marketplace" UI can fetch it without GitHub authentication
+- New team members can run `claude plugin marketplace add ...` without first authenticating
+- Onboarding is faster
+
+The actual competitive advantage — the 105 skills, the kr-pricing tables, the canonical implementations — remains protected in the underlying private source repos. GitHub access controls who can clone and install each plugin.
+
+---
+
+*STUDIO X AS — Discovery layer is public. Plugin source code is private.*
