@@ -36,12 +36,15 @@ read_input() {
 }
 
 # ===== Visual helpers =====
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-BOLD='\033[1m'
-NC='\033[0m'  # No Color
+# ANSI-C quoting ($'...') so escape codes are interpreted at assignment time.
+# This makes the variables work in cat <<EOF (heredoc) blocks too — not just
+# in echo -e contexts.
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+RED=$'\033[0;31m'
+BLUE=$'\033[0;34m'
+BOLD=$'\033[1m'
+NC=$'\033[0m'  # No Color
 
 step() { echo -e "\n${BLUE}${BOLD}▶ $1${NC}"; }
 ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
