@@ -169,55 +169,105 @@ declare -A PLUGIN_CHECKED=(
 # NOTE: sx-leadership is intentionally NOT listed here. It is distributed
 # manually as a zip to leadership/sales only — never installable from this script.
 
-print_checklist() {
-  echo ""
-  echo "    ${BOLD}Quick guide:${NC}"
-  echo "      STUDIO X Norway   → sx-core + sx-qa + sx-business"
-  echo "      Pettersson Apps   → sx-core + sx-qa + pa-business"
-  echo "      (sx-leadership is distributed manually — never via this script)"
-  echo ""
-  echo "    Toggle plugins by entering their number. Press Enter (empty) to confirm."
-  echo ""
-  local i=1
+N_PLUGINS=${#PLUGIN_KEYS[@]}
+CURSOR=0
+
+# Print quick guide once (above the menu — won't be redrawn)
+echo ""
+echo "    ${BOLD}Quick guide:${NC}"
+echo "      STUDIO X Norway   → sx-core + sx-qa + sx-business"
+echo "      Pettersson Apps   → sx-core + sx-qa + pa-business"
+echo "      (sx-leadership is distributed manually — never via this script)"
+echo ""
+echo "    ${BOLD}↑↓${NC} move   ${BOLD}SPACE${NC} toggle   ${BOLD}1-${N_PLUGINS}${NC} jump-toggle   ${BOLD}ENTER${NC} confirm   ${BOLD}q${NC} quit"
+echo ""
+
+# Reserve N lines for the menu — redraw will overwrite these
+for ((i=0; i<N_PLUGINS; i++)); do echo ""; done
+
+# Hide cursor while in the menu (and restore on exit)
+tput civis 2>/dev/null
+trap 'tput cnorm 2>/dev/null' EXIT
+
+redraw_menu() {
+  # Move cursor up to top of menu region
+  tput cuu "$N_PLUGINS" 2>/dev/null
+  local i=0
   for p in "${PLUGIN_KEYS[@]}"; do
     local mark="[ ]"
     [[ "${PLUGIN_CHECKED[$p]}" == "1" ]] && mark="${GREEN}[x]${NC}"
-    printf "      %d) %b  %-15s — %s\n" "$i" "$mark" "$p" "${PLUGIN_LABELS[$p]}"
+    local pointer="  "
+    [[ "$i" -eq "$CURSOR" ]] && pointer="${BLUE}▶${NC} "
+    tput el 2>/dev/null  # clear to end of line
+    printf "      %b%d) %b  %-15s — %s\n" "$pointer" "$((i+1))" "$mark" "$p" "${PLUGIN_LABELS[$p]}"
     i=$((i+1))
   done
-  echo ""
 }
 
-while true; do
-  print_checklist
-  ask "Toggle one or more [e.g. 3 or 3 4 or 3,4]; Enter to confirm: "
-  read_input INPUT
-  # Normalize separators (commas → spaces) and trim
-  INPUT="${INPUT//,/ }"
-  INPUT="$(echo "$INPUT" | xargs 2>/dev/null)"
-
-  # Empty input = done
-  if [[ -z "$INPUT" ]]; then
-    break
+toggle_at() {
+  local idx="$1"
+  local key="${PLUGIN_KEYS[$idx]}"
+  if [[ "${PLUGIN_CHECKED[$key]}" == "1" ]]; then
+    PLUGIN_CHECKED[$key]=0
+  else
+    PLUGIN_CHECKED[$key]=1
   fi
+}
 
-  # Process each number in input
-  any_invalid=0
-  for n in $INPUT; do
-    if ! [[ "$n" =~ ^[0-9]+$ ]] || (( n < 1 || n > ${#PLUGIN_KEYS[@]} )); then
-      warn "Invalid choice: '${n}' — must be 1-${#PLUGIN_KEYS[@]}"
-      any_invalid=1
-      continue
-    fi
-    idx=$((n - 1))
-    key="${PLUGIN_KEYS[$idx]}"
-    if [[ "${PLUGIN_CHECKED[$key]}" == "1" ]]; then
-      PLUGIN_CHECKED[$key]=0
-    else
-      PLUGIN_CHECKED[$key]=1
-    fi
-  done
+# Pick input source — /dev/tty if available (works under bash <(curl…)),
+# otherwise fall back to stdin.
+TTY_IN=/dev/stdin
+[[ -e /dev/tty ]] && TTY_IN=/dev/tty
+
+redraw_menu
+
+while true; do
+  # Read a single byte (silent, no echo)
+  IFS= read -rsn1 key < "$TTY_IN" || break
+
+  case "$key" in
+    $'\e')
+      # Escape sequence — try to read the next two bytes (arrow keys)
+      IFS= read -rsn2 -t 0.05 rest < "$TTY_IN" 2>/dev/null || rest=""
+      case "$rest" in
+        '[A')  # up
+          (( CURSOR > 0 )) && CURSOR=$((CURSOR - 1))
+          ;;
+        '[B')  # down
+          (( CURSOR < N_PLUGINS - 1 )) && CURSOR=$((CURSOR + 1))
+          ;;
+      esac
+      ;;
+    ' ')  # space toggles current
+      toggle_at "$CURSOR"
+      ;;
+    '')  # Enter (empty read on newline)
+      break
+      ;;
+    [1-9])
+      n="$key"
+      if (( n >= 1 && n <= N_PLUGINS )); then
+        CURSOR=$((n - 1))
+        toggle_at "$CURSOR"
+      fi
+      ;;
+    q|Q)
+      tput cnorm 2>/dev/null
+      echo ""
+      echo "    Aborted by user."
+      exit 1
+      ;;
+    k|K)  # vim-style up
+      (( CURSOR > 0 )) && CURSOR=$((CURSOR - 1))
+      ;;
+    j|J)  # vim-style down
+      (( CURSOR < N_PLUGINS - 1 )) && CURSOR=$((CURSOR + 1))
+      ;;
+  esac
+  redraw_menu
 done
+
+tput cnorm 2>/dev/null
 
 # Build install list from checked items
 PLUGINS_TO_INSTALL=()
