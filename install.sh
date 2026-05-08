@@ -14,6 +14,24 @@
 #
 # Safe to run multiple times — skips steps that are already done.
 
+# ===== Bash 4+ required (associative arrays) =====
+# macOS ships /bin/bash 3.2 due to GPL licensing. We need 4+ for `declare -A`.
+# If we got here on bash 3, try to re-exec with a newer bash from common paths.
+if [[ -z "${BASH_VERSION:-}" ]] || [[ "${BASH_VERSION%%.*}" -lt 4 ]]; then
+  for newer in /opt/homebrew/bin/bash /usr/local/bin/bash /opt/local/bin/bash; do
+    if [[ -x "$newer" ]] && "$newer" -c '[[ "${BASH_VERSION%%.*}" -ge 4 ]]'; then
+      exec "$newer" "$0" "$@"
+    fi
+  done
+  echo "ERROR: This installer requires bash 4 or later." >&2
+  echo "       macOS ships with bash 3.2 (too old). Install a newer bash via Homebrew:" >&2
+  echo "" >&2
+  echo "         brew install bash" >&2
+  echo "" >&2
+  echo "       Then run the installer again." >&2
+  exit 1
+fi
+
 set -e  # Exit on error
 
 # ===== Sanity check: can we read interactive input? =====
