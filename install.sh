@@ -160,6 +160,8 @@ declare -A PLUGIN_LABELS=(
   ["pa-business"]="24 English business skills (Pettersson Apps)"
 )
 # Default checked state — sx-core + sx-qa on by default, business plugins off.
+# NOTE: this is overridden below if any plugin is already installed (we
+# pre-check based on actual current state so the menu reflects reality).
 declare -A PLUGIN_CHECKED=(
   ["sx-core"]=1
   ["sx-qa"]=1
@@ -168,6 +170,19 @@ declare -A PLUGIN_CHECKED=(
 )
 # NOTE: sx-leadership is intentionally NOT listed here. It is distributed
 # manually as a zip to leadership/sales only — never installable from this script.
+
+# Detect what's currently installed and pre-check the menu accordingly.
+# We also record the full plugin@marketplace id so we can update/uninstall
+# the exact installed version, not assume @studio-x-plugins.
+declare -A PLUGIN_INSTALLED_ID
+INSTALLED_LIST=$(claude plugin list 2>/dev/null || true)
+for p in "${PLUGIN_KEYS[@]}"; do
+  existing_id=$(echo "$INSTALLED_LIST" | grep -oE "${p}@[a-zA-Z0-9_-]+" | head -1)
+  if [[ -n "$existing_id" ]]; then
+    PLUGIN_INSTALLED_ID[$p]="$existing_id"
+    PLUGIN_CHECKED[$p]=1  # pre-check anything already installed
+  fi
+done
 
 N_PLUGINS=${#PLUGIN_KEYS[@]}
 CURSOR=0
@@ -269,115 +284,157 @@ done
 
 tput cnorm 2>/dev/null
 
-# Build install list from checked items
-PLUGINS_TO_INSTALL=()
+# Compute the diff between current state and chosen state:
+#   - TO_INSTALL = checked AND not installed  → claude plugin install
+#   - TO_UPDATE  = checked AND already installed → claude plugin update
+#   - TO_REMOVE  = unchecked AND currently installed → claude plugin uninstall
+TO_INSTALL=()
+TO_UPDATE=()
+TO_REMOVE=()
 for p in "${PLUGIN_KEYS[@]}"; do
-  [[ "${PLUGIN_CHECKED[$p]}" == "1" ]] && PLUGINS_TO_INSTALL+=("$p")
-done
+  is_installed=0
+  [[ -n "${PLUGIN_INSTALLED_ID[$p]:-}" ]] && is_installed=1
+  is_checked=0
+  [[ "${PLUGIN_CHECKED[$p]}" == "1" ]] && is_checked=1
 
-if [[ ${#PLUGINS_TO_INSTALL[@]} -eq 0 ]]; then
-  warn "No plugins selected — nothing to install. Exiting."
-  exit 0
-fi
-
-echo ""
-ok "Plugins to install: ${PLUGINS_TO_INSTALL[*]}"
-
-# ===== Pre-install access check =====
-# Verify GitHub access to each selected plugin's source repo BEFORE we attempt
-# install. Saves the user from a confusing 403/404 mid-install.
-step "Verifying GitHub access to selected plugins"
-
-ACCESS_DENIED=()
-for plugin in "${PLUGINS_TO_INSTALL[@]}"; do
-  if gh api "repos/studioxdeveloper/${plugin}" &>/dev/null; then
-    ok "${plugin} — access confirmed"
-  else
-    err "${plugin} — no access to studioxdeveloper/${plugin}"
-    ACCESS_DENIED+=("$plugin")
+  if (( is_checked == 1 && is_installed == 0 )); then
+    TO_INSTALL+=("$p")
+  elif (( is_checked == 1 && is_installed == 1 )); then
+    TO_UPDATE+=("$p")
+  elif (( is_checked == 0 && is_installed == 1 )); then
+    TO_REMOVE+=("$p")
   fi
 done
 
-if [[ ${#ACCESS_DENIED[@]} -gt 0 ]]; then
+# Show summary of planned actions
+echo ""
+if [[ ${#TO_INSTALL[@]} -gt 0 ]]; then
+  ok "Will install:   ${TO_INSTALL[*]}"
+fi
+if [[ ${#TO_UPDATE[@]} -gt 0 ]]; then
+  ok "Will update:    ${TO_UPDATE[*]}"
+fi
+if [[ ${#TO_REMOVE[@]} -gt 0 ]]; then
+  warn "Will uninstall: ${TO_REMOVE[*]}"
+fi
+
+if [[ ${#TO_INSTALL[@]} -eq 0 && ${#TO_UPDATE[@]} -eq 0 && ${#TO_REMOVE[@]} -eq 0 ]]; then
+  ok "No changes — selection matches current state."
   echo ""
-  warn "You don't have access to: ${ACCESS_DENIED[*]}"
+  echo "  Skipping to auto-update check..."
+  SKIP_PLUGIN_OPS=1
+fi
+
+# Confirm before any uninstall (destructive)
+if [[ ${#TO_REMOVE[@]} -gt 0 ]]; then
   echo ""
-  echo "    Possible reasons:"
-  for p in "${ACCESS_DENIED[@]}"; do
-    case "$p" in
-      sx-business)
-        echo "      • sx-business is for STUDIO X Norway only."
-        echo "        If you're on the Pettersson Apps team, select ${BOLD}pa-business${NC} instead."
-        ;;
-      pa-business)
-        echo "      • pa-business is for Pettersson Apps + STUDIO X."
-        echo "        Contact rune@studiox.no to be added as collaborator."
-        ;;
-      *)
-        echo "      • ${p}: contact rune@studiox.no for collaborator access,"
-        echo "        or ask for the Cowork zip if you only use Claude Desktop."
-        ;;
-    esac
-  done
-  echo ""
-  ask "Continue and install only the plugins you have access to? [y/N] "
+  ask "Confirm uninstall of: ${TO_REMOVE[*]} ? [y/N] "
   read_input REPLY
   REPLY="${REPLY//[[:space:]]/}"
   if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-    echo "    Aborted. No changes made."
-    exit 1
+    warn "Skipping uninstall step — but proceeding with installs/updates."
+    TO_REMOVE=()
   fi
-  # Filter out denied plugins
-  FILTERED=()
-  for p in "${PLUGINS_TO_INSTALL[@]}"; do
-    skip=0
-    for d in "${ACCESS_DENIED[@]}"; do
-      [[ "$p" == "$d" ]] && skip=1 && break
-    done
-    [[ "$skip" -eq 0 ]] && FILTERED+=("$p")
-  done
-  PLUGINS_TO_INSTALL=("${FILTERED[@]}")
-  if [[ ${#PLUGINS_TO_INSTALL[@]} -eq 0 ]]; then
-    err "Nothing left to install."
-    exit 1
-  fi
-  ok "Continuing with: ${PLUGINS_TO_INSTALL[*]}"
 fi
 
-step "Installing plugins"
+# ===== Pre-install access check =====
+# Verify GitHub access to each new plugin to install BEFORE we attempt.
+# (Updates of already-installed plugins are assumed to have access.)
+if [[ -z "${SKIP_PLUGIN_OPS:-}" && ${#TO_INSTALL[@]} -gt 0 ]]; then
+  step "Verifying GitHub access to new plugins"
 
-for plugin in "${PLUGINS_TO_INSTALL[@]}"; do
-  # Find ANY existing installation of this plugin (regardless of marketplace).
-  # The format is "<plugin>@<marketplace>" so we look for lines that start with
-  # the plugin name followed by @.
-  existing_id=$(claude plugin list 2>/dev/null | grep -oE "${plugin}@[a-zA-Z0-9_-]+" | head -1)
+  ACCESS_DENIED=()
+  for plugin in "${TO_INSTALL[@]}"; do
+    if gh api "repos/studioxdeveloper/${plugin}" &>/dev/null; then
+      ok "${plugin} — access confirmed"
+    else
+      err "${plugin} — no access to studioxdeveloper/${plugin}"
+      ACCESS_DENIED+=("$plugin")
+    fi
+  done
 
-  if [[ -n "$existing_id" ]]; then
-    echo "    ${plugin} already installed as ${existing_id} — updating..."
+  if [[ ${#ACCESS_DENIED[@]} -gt 0 ]]; then
+    echo ""
+    warn "You don't have access to: ${ACCESS_DENIED[*]}"
+    echo ""
+    echo "    Possible reasons:"
+    for p in "${ACCESS_DENIED[@]}"; do
+      case "$p" in
+        sx-business)
+          echo "      • sx-business is for STUDIO X Norway only."
+          echo "        If you're on the Pettersson Apps team, select ${BOLD}pa-business${NC} instead."
+          ;;
+        pa-business)
+          echo "      • pa-business is for Pettersson Apps + STUDIO X."
+          echo "        Contact rune@studiox.no to be added as collaborator."
+          ;;
+        *)
+          echo "      • ${p}: contact rune@studiox.no for collaborator access,"
+          echo "        or ask for the Cowork zip if you only use Claude Desktop."
+          ;;
+      esac
+    done
+    echo ""
+    ask "Continue with the plugins you do have access to? [y/N] "
+    read_input REPLY
+    REPLY="${REPLY//[[:space:]]/}"
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+      echo "    Aborted. No changes made."
+      exit 1
+    fi
+    FILTERED=()
+    for p in "${TO_INSTALL[@]}"; do
+      skip=0
+      for d in "${ACCESS_DENIED[@]}"; do
+        [[ "$p" == "$d" ]] && skip=1 && break
+      done
+      [[ "$skip" -eq 0 ]] && FILTERED+=("$p")
+    done
+    TO_INSTALL=("${FILTERED[@]}")
+  fi
+fi
+
+# ===== Apply changes =====
+if [[ -z "${SKIP_PLUGIN_OPS:-}" ]]; then
+  step "Applying plugin changes"
+
+  # Uninstall first (so a re-install in the same run works on fresh state)
+  for plugin in "${TO_REMOVE[@]}"; do
+    existing_id="${PLUGIN_INSTALLED_ID[$plugin]}"
+    echo "    Uninstalling ${existing_id}..."
+    if claude plugin uninstall "${existing_id}" 2>&1 | tail -1; then
+      ok "${plugin} uninstalled"
+    else
+      err "Failed to uninstall ${plugin} (id: ${existing_id})"
+    fi
+  done
+
+  # Update existing
+  for plugin in "${TO_UPDATE[@]}"; do
+    existing_id="${PLUGIN_INSTALLED_ID[$plugin]}"
+    echo "    Updating ${existing_id}..."
     if claude plugin update "${existing_id}" 2>&1 | tail -1; then
-      ok "${plugin} updated (still on ${existing_id})"
-      # If it's not from the new central marketplace, hint at migration
+      ok "${plugin} updated"
       if [[ "$existing_id" != "${plugin}@studio-x-plugins" ]]; then
-        echo "      ℹ Tip: This plugin is from the old marketplace. To migrate to the central one:"
+        echo "      ℹ Tip: still on old marketplace (${existing_id}). To migrate:"
         echo "        claude plugin uninstall ${existing_id}"
         echo "        claude plugin install ${plugin}@studio-x-plugins"
       fi
     else
-      err "Could not update ${plugin} (id: ${existing_id})"
-      echo "      Try manually: claude plugin update ${existing_id}"
-      echo "      Or reinstall:  claude plugin uninstall ${existing_id} && claude plugin install ${plugin}@studio-x-plugins"
+      err "Could not update ${plugin}"
     fi
-  else
+  done
+
+  # Install new
+  for plugin in "${TO_INSTALL[@]}"; do
     echo "    Installing ${plugin}..."
     if claude plugin install "${plugin}@studio-x-plugins" 2>&1 | tail -3; then
       ok "${plugin} installed"
     else
       err "Failed to install ${plugin}"
-      echo "      You may not have access to this plugin's source repo."
-      echo "      Contact rune@studiox.no if you should have access."
     fi
-  fi
-done
+  done
+fi
 
 # ===== Step 5: Set up auto-update =====
 step "Step 5/5 — Auto-update setup"
@@ -404,10 +461,14 @@ else
 fi
 
 # ===== Done =====
+# Build final state list from current claude plugin list (post-changes)
+FINAL_LIST=$(claude plugin list 2>/dev/null | grep -oE "(sx-core|sx-qa|sx-business|pa-business|sx-leadership)@[a-zA-Z0-9_-]+" | sort -u | tr '\n' ' ')
+[[ -z "$FINAL_LIST" ]] && FINAL_LIST="(none)"
+
 cat <<EOF
 
 
-  ${GREEN}${BOLD}Installation complete!${NC}
+  ${GREEN}${BOLD}Done!${NC}
 
   Next steps:
     1. Restart Claude Code (Cmd+Q and reopen) to load all skills
@@ -415,7 +476,7 @@ cat <<EOF
     3. Try a prompt to verify — for example:
        "List all STUDIO X plugins available"
 
-  Plugins installed: ${PLUGINS_TO_INSTALL[*]}
+  Currently installed: ${FINAL_LIST}
   Auto-update: $([[ -f ~/Library/LaunchAgents/no.studiox.plugin-updater.plist ]] && echo "enabled" || echo "not configured")
 
   Documentation:
