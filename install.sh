@@ -190,8 +190,10 @@ CURSOR=0
 # Print quick guide once (above the menu — won't be redrawn)
 echo ""
 echo "    ${BOLD}Quick guide:${NC}"
-echo "      STUDIO X Norway   → sx-core + sx-qa + sx-business"
-echo "      Pettersson Apps   → sx-core + sx-qa + pa-business"
+echo "      Pure developer        → sx-core + sx-qa  (default)"
+echo "      Developer + sales/PM  → sx-core + sx-qa + sx-business  (e.g. CTO)"
+echo "      Pettersson Apps dev   → sx-core + sx-qa + pa-business"
+echo "      Business-only user    → use Cowork instead (skip this script)"
 echo "      (sx-leadership is distributed manually — never via this script)"
 echo ""
 echo "    ${BOLD}↑↓${NC} move   ${BOLD}SPACE${NC} toggle   ${BOLD}1-${N_PLUGINS}${NC} jump-toggle   ${BOLD}ENTER${NC} confirm   ${BOLD}q${NC} quit"
