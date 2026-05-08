@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "sx-core",
-      "description": "STUDIO X core toolkit — 100 universal technical skills, 39 agents, 4 hooks for all teams. English content with bilingual triggers. Pair with sx-qa for testing.",
+      "description": "STUDIO X core toolkit — 100 universal technical skills, 40 agents, 3 hooks for all teams. English content with bilingual triggers. Pair with sx-qa for testing.",
       "category": "development",
       "source": {
         "source": "git-subdir",

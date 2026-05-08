@@ -1,37 +1,46 @@
 # STUDIO X Plugins — Central Marketplace
 
-> One marketplace, four plugins. Add this once in Claude Code or Claude Desktop, and you can install whichever plugins you need from a single place.
+> One marketplace, five plugins. Add this once in Claude Code, and you can install whichever plugins you need from a single place.
 
-This repo is public, but most of the plugins it lists are private and require authorized GitHub access to the `studioxdeveloper` organization.
+This repo is public, but the plugins it lists are private and require authorized GitHub access to the `studioxdeveloper` organization.
 
 ---
 
 ## Two installation paths
 
-### Path A — Claude Code (terminal users)
+### Path A — Claude Code (developers)
 
-The fastest way to get everything set up — handles GitHub authentication, marketplace registration, plugin installation, and auto-updates:
+The fastest way to get everything set up — handles GitHub authentication, marketplace registration, plugin selection, and auto-updates:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/studioxdeveloper/sx-plugins/main/install.sh)
 ```
 
-The script asks for your role (developer / PM / sales / partner) and installs the right plugins for you. Takes 2 minutes. Safe to run multiple times.
+The script presents an interactive checkbox menu where you toggle which plugins to install (sx-core and sx-qa pre-checked by default). Already-installed plugins are detected and pre-checked; unchecking them on a re-run uninstalls. Takes 2 minutes.
 
 **No SSH setup required** — uses HTTPS via GitHub CLI authentication.
 
-### Path B — Claude Desktop only (no terminal)
+If GitHub's CDN is serving a stale cached copy, bypass it via the GitHub API:
 
-Claude Desktop's "Add marketplace" UI cannot authenticate to private GitHub repos, so it cannot install our plugins via marketplace URL. Instead, download the ZIP files from the GitHub Releases on each plugin repo and upload them via Claude Desktop UI.
+```bash
+rm -f /tmp/sx-install.sh && \
+  gh api repos/studioxdeveloper/sx-plugins/contents/install.sh --jq .content | base64 -d > /tmp/sx-install.sh && \
+  bash /tmp/sx-install.sh
+```
 
-**Latest releases:**
+### Path B — Claude Desktop / Cowork (non-developers)
 
-| Plugin | Latest release | Download |
-|--------|---------------|----------|
-| sx-core | v1.12.4 | [sx-core releases](https://github.com/studioxdeveloper/sx-core/releases/latest) |
-| sx-business | v1.5.2 | [sx-business releases](https://github.com/studioxdeveloper/sx-business/releases/latest) |
-| pa-business | v1.2.1 | [pa-business releases](https://github.com/studioxdeveloper/pa-business/releases/latest) |
-| sx-leadership | v1.2.2 (RESTRICTED) | [sx-leadership releases](https://github.com/studioxdeveloper/sx-leadership/releases/latest) |
+Claude Desktop's "Add marketplace" UI cannot authenticate to private GitHub repos, so it cannot install plugins via marketplace URL. Instead, download the ZIP files from the GitHub Releases on each plugin repo and upload them via Claude Desktop UI.
+
+**Where to download:**
+
+| Plugin | Download |
+|--------|----------|
+| sx-core | [sx-core/releases/latest](https://github.com/studioxdeveloper/sx-core/releases/latest) |
+| sx-qa | [sx-qa/releases/latest](https://github.com/studioxdeveloper/sx-qa/releases/latest) |
+| sx-business | [sx-business/releases/latest](https://github.com/studioxdeveloper/sx-business/releases/latest) |
+| pa-business | [pa-business/releases/latest](https://github.com/studioxdeveloper/pa-business/releases/latest) |
+| sx-leadership | **NOT on GitHub Releases** — distributed manually by rune@studiox.no |
 
 **Install steps:**
 
@@ -39,12 +48,13 @@ Claude Desktop's "Add marketplace" UI cannot authenticate to private GitHub repo
 2. Open Claude Desktop → **Customize → Plugins → Personal → Local uploads**
 3. Click the **+** icon → **Upload plugin**
 4. Select the downloaded zip file
-5. The plugin appears in your plugin menu under "Local uploads"
-6. Restart Claude Desktop to activate skills
+5. Restart Claude Desktop to activate skills
 
 Repeat for each plugin you want to install.
 
-> **For non-developers without GitHub access:** Contact rune@studiox.no to receive zip files via Slack or Dropbox.
+> **For non-developers without GitHub access:** Contact rune@studiox.no to receive zip files directly via Slack, AirDrop, or 1Password.
+>
+> **For Cowork-only business users:** sx-core is built for developers and most of its skills won't activate in Cowork. You generally only need sx-business or pa-business.
 
 **Updates:** When a new version is released, download the new zip and upload it again. The newer version replaces the older one in Claude Desktop.
 
@@ -53,17 +63,18 @@ Repeat for each plugin you want to install.
 ## What's here
 
 This repo contains:
-- `.claude-plugin/marketplace.json` — points to the four actual plugin repos
-- `install.sh` — one-shot installer (recommended for new users)
+- `.claude-plugin/marketplace.json` — points to the five actual plugin repos
+- `install.sh` — one-shot installer with interactive plugin picker
 - This README
 
 The plugin code itself lives in separate private repos:
 
 | Plugin | What it includes | Source repo |
 |--------|------------------|-------------|
-| **sx-core** | 105 technical skills + 41 agents + 4 hooks | studioxdeveloper/sx-core |
+| **sx-core** | 100 technical skills + 40 agents + 3 hooks | studioxdeveloper/sx-core |
+| **sx-qa** | 10 QA skills + 3 agents + 2 hooks + Maestro/Playwright MCP | studioxdeveloper/sx-qa |
 | **sx-business** | 32 Norwegian business skills (STUDIO X Norway only) | studioxdeveloper/sx-business |
-| **pa-business** | 24 English business skills (Pettersson Apps only) | studioxdeveloper/pa-business |
+| **pa-business** | 24 English business skills (Pettersson Apps + STUDIO X) | studioxdeveloper/pa-business |
 | **sx-leadership** | 5 restricted pricing skills (leadership/sales only) | studioxdeveloper/sx-leadership |
 
 ---
@@ -76,19 +87,20 @@ The plugin code itself lives in separate private repos:
 claude plugin marketplace add studioxdeveloper/sx-plugins
 ```
 
-After this, all four plugins are visible in the Claude Code and Claude Desktop plugin menus.
+After this, all five plugins are visible in the `claude plugin install` menu.
 
 ### Step 2: Install what you need
 
 In your terminal (Claude Code):
 ```bash
-# All developers and PMs:
+# All developers (recommended):
 claude plugin install sx-core@studio-x-plugins
+claude plugin install sx-qa@studio-x-plugins
 
-# STUDIO X Norway team:
+# STUDIO X Norway team (developers + PMs + sales):
 claude plugin install sx-business@studio-x-plugins
 
-# Pettersson Apps team:
+# Pettersson Apps team (developers + PMs):
 claude plugin install pa-business@studio-x-plugins
 
 # Leadership/sales only (requires specific GitHub access):
@@ -109,16 +121,16 @@ Claude Code and Claude Desktop share the same plugin directory (`~/.claude/plugi
 
 ## Who installs what
 
-| Role | sx-core | sx-business | pa-business | sx-leadership |
-|------|:-------:|:-----------:|:-----------:|:-------------:|
-| STUDIO X developer (Norway) | ✓ | ✓ | – | – |
-| STUDIO X PM (Norway) | ✓ | ✓ | – | – |
-| STUDIO X sales | ✓ | ✓ | – | ✓ |
-| STUDIO X leadership (Rune) | ✓ | ✓ | – | ✓ |
-| Pettersson Apps developer | ✓ | – | ✓ | – |
-| Pettersson Apps PM | ✓ | – | ✓ | – |
+| Role | sx-core | sx-qa | sx-business | pa-business | sx-leadership |
+|------|:-------:|:-----:|:-----------:|:-----------:|:-------------:|
+| STUDIO X developer (Norway) | ✓ | ✓ | ✓ | – | – |
+| STUDIO X PM (Norway) | ✓ | – | ✓ | – | – |
+| STUDIO X sales | ✓ | – | ✓ | – | ✓ |
+| STUDIO X leadership (Rune) | ✓ | ✓ | ✓ | – | ✓ |
+| Pettersson Apps developer | ✓ | ✓ | – | ✓ | – |
+| Pettersson Apps PM | ✓ | – | – | ✓ | – |
 
-**Access control**: GitHub permissions on each underlying source repo control who can actually install what. Pettersson Apps gets access to `sx-core` and `pa-business`, but not `sx-business` or `sx-leadership`. Listing plugins here does not grant access to the source code.
+**Access control**: GitHub permissions on each underlying source repo control who can actually install what. Pettersson Apps gets access to `sx-core`, `sx-qa`, and `pa-business`, but not `sx-business` or `sx-leadership`. Listing plugins here does not grant access to the source code.
 
 ---
 
@@ -136,16 +148,7 @@ Or automatically via the auto-update launchd agent (see `sx-core/skills/sx-auto-
 
 ## Why this exists
 
-Before this central marketplace, users had to add four separate marketplaces:
-
-```bash
-claude plugin marketplace add studioxdeveloper/sx-core
-claude plugin marketplace add studioxdeveloper/sx-business
-claude plugin marketplace add studioxdeveloper/pa-business
-claude plugin marketplace add studioxdeveloper/sx-leadership
-```
-
-Now it's one command, and all plugins are visible in a single picker UI. Less friction for new team members and partners.
+Before this central marketplace, users had to add five separate marketplaces — one per plugin. Now it's one command, and all plugins are visible in a single picker UI. Less friction for new team members and partners.
 
 ---
 
@@ -168,7 +171,7 @@ This repo only contains pointers (plugin names + URLs). It contains no proprieta
 - New team members can run `claude plugin marketplace add ...` without first authenticating
 - Onboarding is faster
 
-The actual competitive advantage — the 105 skills, the kr-pricing tables, the canonical implementations — remains protected in the underlying private source repos. GitHub access controls who can clone and install each plugin.
+The actual competitive advantage — the ~150 skills, the kr-pricing tables, the canonical implementations — remains protected in the underlying private source repos. GitHub access controls who can clone and install each plugin.
 
 ---
 
