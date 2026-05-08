@@ -147,66 +147,148 @@ fi
 
 ok "Marketplace ready"
 
-# ===== Step 4: Pick role and install plugins =====
-step "Step 4/5 — Pick your role"
+# ===== Step 4: Pick plugins (toggle checkboxes) =====
+step "Step 4/5 — Pick which plugins to install"
 
-cat <<'EOF'
+# Available plugins, in order shown to user.
+# Each plugin has a label and an optional default state ("on" preselected).
+PLUGIN_KEYS=("sx-core" "sx-qa" "sx-business" "pa-business")
+declare -A PLUGIN_LABELS=(
+  ["sx-core"]="105 technical skills (recommended for everyone)"
+  ["sx-qa"]="10 QA skills + Maestro & Playwright MCP (companion to sx-core)"
+  ["sx-business"]="32 Norwegian business skills"
+  ["pa-business"]="24 English business skills (Pettersson Apps)"
+)
+# Default checked state — sx-core + sx-qa on by default, business plugins off.
+declare -A PLUGIN_CHECKED=(
+  ["sx-core"]=1
+  ["sx-qa"]=1
+  ["sx-business"]=0
+  ["pa-business"]=0
+)
+# NOTE: sx-leadership is intentionally NOT listed here. It is distributed
+# manually as a zip to leadership/sales only — never installable from this script.
 
-  Which role best describes you?
-
-    1) STUDIO X Developer (Norway)        → sx-core + sx-business
-    2) STUDIO X Project Manager (Norway)  → sx-core + sx-business
-    3) STUDIO X Sales / Leadership        → sx-core + sx-business + sx-leadership
-    4) Pettersson Apps Developer          → sx-core + pa-business
-    5) Pettersson Apps Project Manager    → sx-core + pa-business
-    6) Custom (pick plugins individually)
-EOF
-
-ask "Enter choice [1-6]: "
-read_input ROLE
-
-# Strip all whitespace and non-printable chars (handles terminal weirdness, paste artifacts)
-ROLE="${ROLE//[[:space:]]/}"
-ROLE="${ROLE//$'\r'/}"
-ROLE="${ROLE//$'\n'/}"
-
-PLUGINS_TO_INSTALL=()
-if [[ "$ROLE" == "1" || "$ROLE" == "2" ]]; then
-  PLUGINS_TO_INSTALL=("sx-core" "sx-business")
-  ROLE_NAME="STUDIO X Norway"
-elif [[ "$ROLE" == "3" ]]; then
-  PLUGINS_TO_INSTALL=("sx-core" "sx-business" "sx-leadership")
-  ROLE_NAME="STUDIO X Sales/Leadership"
-elif [[ "$ROLE" == "4" || "$ROLE" == "5" ]]; then
-  PLUGINS_TO_INSTALL=("sx-core" "pa-business")
-  ROLE_NAME="Pettersson Apps"
-elif [[ "$ROLE" == "6" ]]; then
+print_checklist() {
   echo ""
-  echo "    Available plugins:"
-  echo "      • sx-core        — 105 technical skills (recommended for everyone)"
-  echo "      • sx-business    — 32 Norwegian business skills"
-  echo "      • pa-business    — 24 English business skills (Pettersson Apps)"
-  echo "      • sx-leadership  — 5 restricted pricing skills (leadership/sales only)"
+  echo "    ${BOLD}Quick guide:${NC}"
+  echo "      STUDIO X Norway   → sx-core + sx-qa + sx-business"
+  echo "      Pettersson Apps   → sx-core + sx-qa + pa-business"
+  echo "      (sx-leadership is distributed manually — never via this script)"
   echo ""
-  for p in sx-core sx-business pa-business sx-leadership; do
-    ask "Install ${p}? [y/N] "
-    read_input REPLY
-    REPLY="${REPLY//[[:space:]]/}"
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-      PLUGINS_TO_INSTALL+=("$p")
-    fi
+  echo "    Toggle plugins by entering their number. Press Enter (empty) to confirm."
+  echo ""
+  local i=1
+  for p in "${PLUGIN_KEYS[@]}"; do
+    local mark="[ ]"
+    [[ "${PLUGIN_CHECKED[$p]}" == "1" ]] && mark="${GREEN}[x]${NC}"
+    printf "      %d) %b  %-15s — %s\n" "$i" "$mark" "$p" "${PLUGIN_LABELS[$p]}"
+    i=$((i+1))
   done
-  ROLE_NAME="Custom"
-else
-  err "Invalid choice: '${ROLE}' (length: ${#ROLE})"
-  echo "    Expected 1, 2, 3, 4, 5, or 6"
-  echo "    Hex dump of input: $(printf '%s' "$ROLE" | xxd 2>/dev/null | head -1)"
-  exit 1
+  echo ""
+}
+
+while true; do
+  print_checklist
+  ask "Toggle [1-${#PLUGIN_KEYS[@]}] or Enter to confirm: "
+  read_input INPUT
+  INPUT="${INPUT//[[:space:]]/}"
+
+  # Empty input = done
+  if [[ -z "$INPUT" ]]; then
+    break
+  fi
+
+  # Validate numeric and in-range
+  if ! [[ "$INPUT" =~ ^[0-9]+$ ]] || (( INPUT < 1 || INPUT > ${#PLUGIN_KEYS[@]} )); then
+    warn "Invalid choice: '${INPUT}' — enter 1-${#PLUGIN_KEYS[@]} or press Enter to confirm"
+    continue
+  fi
+
+  # Toggle the selected plugin
+  idx=$((INPUT - 1))
+  key="${PLUGIN_KEYS[$idx]}"
+  if [[ "${PLUGIN_CHECKED[$key]}" == "1" ]]; then
+    PLUGIN_CHECKED[$key]=0
+  else
+    PLUGIN_CHECKED[$key]=1
+  fi
+done
+
+# Build install list from checked items
+PLUGINS_TO_INSTALL=()
+for p in "${PLUGIN_KEYS[@]}"; do
+  [[ "${PLUGIN_CHECKED[$p]}" == "1" ]] && PLUGINS_TO_INSTALL+=("$p")
+done
+
+if [[ ${#PLUGINS_TO_INSTALL[@]} -eq 0 ]]; then
+  warn "No plugins selected — nothing to install. Exiting."
+  exit 0
 fi
 
 echo ""
-ok "Role: ${ROLE_NAME}"
 ok "Plugins to install: ${PLUGINS_TO_INSTALL[*]}"
+
+# ===== Pre-install access check =====
+# Verify GitHub access to each selected plugin's source repo BEFORE we attempt
+# install. Saves the user from a confusing 403/404 mid-install.
+step "Verifying GitHub access to selected plugins"
+
+ACCESS_DENIED=()
+for plugin in "${PLUGINS_TO_INSTALL[@]}"; do
+  if gh api "repos/studioxdeveloper/${plugin}" &>/dev/null; then
+    ok "${plugin} — access confirmed"
+  else
+    err "${plugin} — no access to studioxdeveloper/${plugin}"
+    ACCESS_DENIED+=("$plugin")
+  fi
+done
+
+if [[ ${#ACCESS_DENIED[@]} -gt 0 ]]; then
+  echo ""
+  warn "You don't have access to: ${ACCESS_DENIED[*]}"
+  echo ""
+  echo "    Possible reasons:"
+  for p in "${ACCESS_DENIED[@]}"; do
+    case "$p" in
+      sx-business)
+        echo "      • sx-business is for STUDIO X Norway only."
+        echo "        If you're on the Pettersson Apps team, select ${BOLD}pa-business${NC} instead."
+        ;;
+      pa-business)
+        echo "      • pa-business is for Pettersson Apps + STUDIO X."
+        echo "        Contact rune@studiox.no to be added as collaborator."
+        ;;
+      *)
+        echo "      • ${p}: contact rune@studiox.no for collaborator access,"
+        echo "        or ask for the Cowork zip if you only use Claude Desktop."
+        ;;
+    esac
+  done
+  echo ""
+  ask "Continue and install only the plugins you have access to? [y/N] "
+  read_input REPLY
+  REPLY="${REPLY//[[:space:]]/}"
+  if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+    echo "    Aborted. No changes made."
+    exit 1
+  fi
+  # Filter out denied plugins
+  FILTERED=()
+  for p in "${PLUGINS_TO_INSTALL[@]}"; do
+    skip=0
+    for d in "${ACCESS_DENIED[@]}"; do
+      [[ "$p" == "$d" ]] && skip=1 && break
+    done
+    [[ "$skip" -eq 0 ]] && FILTERED+=("$p")
+  done
+  PLUGINS_TO_INSTALL=("${FILTERED[@]}")
+  if [[ ${#PLUGINS_TO_INSTALL[@]} -eq 0 ]]; then
+    err "Nothing left to install."
+    exit 1
+  fi
+  ok "Continuing with: ${PLUGINS_TO_INSTALL[*]}"
+fi
 
 step "Installing plugins"
 
