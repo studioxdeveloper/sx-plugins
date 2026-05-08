@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "sx-core",
-      "description": "STUDIO X core toolkit — 105 universal technical skills, 41 agents, 4 hooks for all teams. English content with bilingual triggers.",
+      "description": "STUDIO X core toolkit — 100 universal technical skills, 39 agents, 4 hooks for all teams. English content with bilingual triggers. Pair with sx-qa for testing.",
       "category": "development",
       "source": {
         "source": "git-subdir",
@@ -18,6 +18,18 @@
         "ref": "main"
       },
       "homepage": "https://github.com/studioxdeveloper/sx-core"
+    },
+    {
+      "name": "sx-qa",
+      "description": "Shared QA toolkit for STUDIO X and Pettersson Apps — 10 skills, 3 agents, 2 hooks, plus Maestro and Playwright MCP servers for testing Expo, PWA, and web. Recommended companion to sx-core.",
+      "category": "development",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/studioxdeveloper/sx-qa.git",
+        "path": "plugins/sx-qa",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/studioxdeveloper/sx-qa"
     },
     {
       "name": "sx-business",
