@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "studio-x-plugins",
   "description": "STUDIO X — all plugins in one place. Pick what you need based on role and team.",
   "owner": {
@@ -14,10 +13,8 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/studioxdeveloper/sx-core.git",
-        "path": "plugins/sx-core",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/studioxdeveloper/sx-core"
+        "path": "plugins/sx-core"
+      }
     },
     {
       "name": "sx-qa",
@@ -26,10 +23,8 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/studioxdeveloper/sx-qa.git",
-        "path": "plugins/sx-qa",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/studioxdeveloper/sx-qa"
+        "path": "plugins/sx-qa"
+      }
     },
     {
       "name": "sx-business",
@@ -38,10 +33,8 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/studioxdeveloper/sx-business.git",
-        "path": "plugins/sx-business",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/studioxdeveloper/sx-business"
+        "path": "plugins/sx-business"
+      }
     },
     {
       "name": "pa-business",
@@ -50,10 +43,8 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/studioxdeveloper/pa-business.git",
-        "path": "plugins/pa-business",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/studioxdeveloper/pa-business"
+        "path": "plugins/pa-business"
+      }
     },
     {
       "name": "sx-leadership",
@@ -62,10 +53,8 @@
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/studioxdeveloper/sx-leadership.git",
-        "path": "plugins/sx-leadership",
-        "ref": "main"
-      },
-      "homepage": "https://github.com/studioxdeveloper/sx-leadership"
+        "path": "plugins/sx-leadership"
+      }
     }
   ]
 }
