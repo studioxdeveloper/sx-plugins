@@ -190,29 +190,33 @@ print_checklist() {
 
 while true; do
   print_checklist
-  ask "Toggle [1-${#PLUGIN_KEYS[@]}] or Enter to confirm: "
+  ask "Toggle one or more [e.g. 3 or 3 4 or 3,4]; Enter to confirm: "
   read_input INPUT
-  INPUT="${INPUT//[[:space:]]/}"
+  # Normalize separators (commas → spaces) and trim
+  INPUT="${INPUT//,/ }"
+  INPUT="$(echo "$INPUT" | xargs 2>/dev/null)"
 
   # Empty input = done
   if [[ -z "$INPUT" ]]; then
     break
   fi
 
-  # Validate numeric and in-range
-  if ! [[ "$INPUT" =~ ^[0-9]+$ ]] || (( INPUT < 1 || INPUT > ${#PLUGIN_KEYS[@]} )); then
-    warn "Invalid choice: '${INPUT}' — enter 1-${#PLUGIN_KEYS[@]} or press Enter to confirm"
-    continue
-  fi
-
-  # Toggle the selected plugin
-  idx=$((INPUT - 1))
-  key="${PLUGIN_KEYS[$idx]}"
-  if [[ "${PLUGIN_CHECKED[$key]}" == "1" ]]; then
-    PLUGIN_CHECKED[$key]=0
-  else
-    PLUGIN_CHECKED[$key]=1
-  fi
+  # Process each number in input
+  any_invalid=0
+  for n in $INPUT; do
+    if ! [[ "$n" =~ ^[0-9]+$ ]] || (( n < 1 || n > ${#PLUGIN_KEYS[@]} )); then
+      warn "Invalid choice: '${n}' — must be 1-${#PLUGIN_KEYS[@]}"
+      any_invalid=1
+      continue
+    fi
+    idx=$((n - 1))
+    key="${PLUGIN_KEYS[$idx]}"
+    if [[ "${PLUGIN_CHECKED[$key]}" == "1" ]]; then
+      PLUGIN_CHECKED[$key]=0
+    else
+      PLUGIN_CHECKED[$key]=1
+    fi
+  done
 done
 
 # Build install list from checked items
