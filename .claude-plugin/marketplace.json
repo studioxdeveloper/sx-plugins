@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "sx-core",
-      "description": "STUDIO X core toolkit — 100 universal technical skills, 40 agents, 3 hooks for all teams. English content with bilingual triggers. Pair with sx-qa for testing.",
+      "description": "STUDIO X developer toolkit — 89 skills + 11 feature-templates, 40 agents, 3 hooks. Claude Code only — project management skills moved to sx-pm. Pair with sx-qa for testing.",
       "category": "development",
       "source": {
         "source": "git-subdir",
@@ -27,8 +27,18 @@
       }
     },
     {
+      "name": "sx-pm",
+      "description": "STUDIO X project management toolkit — 16 bilingual (NO + EN) skills for kickoff, planning, status reporting, milestone tracking, risk assessment, change requests, retrospectives, tech/functional specs, and estimation format. For PMs, leaders, sales, and developers. Recommended for everyone.",
+      "category": "business",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/studioxdeveloper/sx-pm.git",
+        "path": "plugins/sx-pm"
+      }
+    },
+    {
       "name": "sx-business",
-      "description": "STUDIO X Norwegian business skills — 32 skills for sales, estimation, project management, templates, and client deliverables. STUDIO X Norway team only.",
+      "description": "STUDIO X Norwegian sales and delivery skills — 19 skills for proposals, estimation, client templates (Word/Excel/PPTX/GSheet), Tripletex billing, sales meetings, lead qualification, and design preproject. STUDIO X Norway team only.",
       "category": "business",
       "source": {
         "source": "git-subdir",

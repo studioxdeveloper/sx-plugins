@@ -11,7 +11,7 @@
 ```
 sx-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json    <- Listing of all 4 plugins
+│   └── marketplace.json    <- Listing of all 6 plugins
 ├── CLAUDE.md
 └── README.md
 ```

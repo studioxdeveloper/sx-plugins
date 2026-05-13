@@ -170,19 +170,24 @@ step "Step 4/5 — Pick which plugins to install"
 
 # Available plugins, in order shown to user.
 # Each plugin has a label and an optional default state ("on" preselected).
-PLUGIN_KEYS=("sx-core" "sx-qa" "sx-business" "pa-business")
+PLUGIN_KEYS=("sx-core" "sx-qa" "sx-pm" "sx-business" "pa-business")
 declare -A PLUGIN_LABELS=(
-  ["sx-core"]="105 technical skills (recommended for everyone)"
+  ["sx-core"]="89 developer skills + 11 feature-templates (Claude Code only)"
   ["sx-qa"]="10 QA skills + Maestro & Playwright MCP (companion to sx-core)"
-  ["sx-business"]="32 Norwegian business skills"
+  ["sx-pm"]="16 bilingual project management skills (everyone)"
+  ["sx-business"]="19 Norwegian sales & delivery skills"
   ["pa-business"]="24 English business skills (Pettersson Apps)"
 )
-# Default checked state — sx-core + sx-qa on by default, business plugins off.
+# Default checked state — sx-core + sx-qa + sx-pm on by default,
+# business plugins off. sx-pm is on for everyone because it covers
+# cross-cutting PM skills (kickoff, status reports, specs) that every
+# STUDIO X user benefits from.
 # NOTE: this is overridden below if any plugin is already installed (we
 # pre-check based on actual current state so the menu reflects reality).
 declare -A PLUGIN_CHECKED=(
   ["sx-core"]=1
   ["sx-qa"]=1
+  ["sx-pm"]=1
   ["sx-business"]=0
   ["pa-business"]=0
 )
@@ -208,10 +213,10 @@ CURSOR=0
 # Print quick guide once (above the menu — won't be redrawn)
 echo ""
 echo "    ${BOLD}Quick guide:${NC}"
-echo "      Pure developer        → sx-core + sx-qa  (default)"
-echo "      Developer + sales/PM  → sx-core + sx-qa + sx-business  (e.g. CTO)"
-echo "      Pettersson Apps dev   → sx-core + sx-qa + pa-business"
-echo "      Business-only user    → use Cowork instead (skip this script)"
+echo "      Pure developer        → sx-core + sx-qa + sx-pm  (default)"
+echo "      Developer + sales/PM  → sx-core + sx-qa + sx-pm + sx-business  (e.g. CTO)"
+echo "      Pettersson Apps dev   → sx-core + sx-qa + sx-pm + pa-business"
+echo "      PM / sales only       → sx-pm + sx-business  (or use Cowork)"
 echo "      (sx-leadership is distributed manually — never via this script)"
 echo ""
 echo "    ${BOLD}↑↓${NC} move   ${BOLD}SPACE${NC} toggle   ${BOLD}1-${N_PLUGINS}${NC} jump-toggle   ${BOLD}ENTER${NC} confirm   ${BOLD}q${NC} quit"
@@ -384,6 +389,10 @@ if [[ -z "${SKIP_PLUGIN_OPS:-}" && ${#TO_INSTALL[@]} -gt 0 ]]; then
           echo "      • sx-business is for STUDIO X Norway only."
           echo "        If you're on the Pettersson Apps team, select ${BOLD}pa-business${NC} instead."
           ;;
+        sx-pm)
+          echo "      • sx-pm is open to all STUDIO X teams (PMs, devs, sales)."
+          echo "        Contact rune@studiox.no for collaborator access."
+          ;;
         pa-business)
           echo "      • pa-business is for Pettersson Apps + STUDIO X."
           echo "        Contact rune@studiox.no to be added as collaborator."
@@ -482,7 +491,7 @@ fi
 
 # ===== Done =====
 # Build final state list from current claude plugin list (post-changes)
-FINAL_LIST=$(claude plugin list 2>/dev/null | grep -oE "(sx-core|sx-qa|sx-business|pa-business|sx-leadership)@[a-zA-Z0-9_-]+" | sort -u | tr '\n' ' ')
+FINAL_LIST=$(claude plugin list 2>/dev/null | grep -oE "(sx-core|sx-qa|sx-pm|sx-business|pa-business|sx-leadership)@[a-zA-Z0-9_-]+" | sort -u | tr '\n' ' ')
 [[ -z "$FINAL_LIST" ]] && FINAL_LIST="(none)"
 
 cat <<EOF
