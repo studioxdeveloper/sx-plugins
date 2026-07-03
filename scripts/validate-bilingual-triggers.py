@@ -5,6 +5,16 @@ validate-bilingual-triggers.py — STUDIO X plugin CI gate.
 Checks that any SKILL.md added or modified in this PR has trigger
 phrases covering the required language(s) for its plugin.
 
+DESIGN: the pass/fail verdict is 100% DETERMINISTIC — charset (æøå) plus
+curated word lists, no model call. The same commit always gets the same
+verdict, and the gate works without any API key. Claude (temperature 0)
+is used ONLY to generate suggested trigger phrases when a file fails;
+suggestions never affect the exit code.
+
+(The previous version let a default-temperature model decide pass/fail,
+which made the gate non-deterministic: the same commit could flip between
+green and red between reruns.)
+
 Plugin rules
 ------------
 - sx-core, sx-pm, sx-qa : BOTH Norwegian AND English required
@@ -13,14 +23,14 @@ Plugin rules
 
 Environment variables
 ---------------------
-- ANTHROPIC_API_KEY  : required (read by anthropic SDK)
+- ANTHROPIC_API_KEY  : optional — enables suggestion generation on failure
 - GITHUB_REPOSITORY  : "studioxdeveloper/sx-core" (set by GitHub Actions)
 - BASE_REF           : base branch name, e.g. "main" (set in workflow)
 - IS_FORK_PR         : "true" if PR is from a fork (set in workflow)
 
 Exit codes
 ----------
-- 0 : all good (or skipped — no skill changes / fork-PR warning / cost cap)
+- 0 : all good (or skipped — no skill changes / fork PR)
 - 1 : at least one skill failed validation
 - 2 : configuration error
 """
@@ -34,16 +44,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-try:
-    from anthropic import Anthropic
-except ImportError:
-    print(
-        "::error::Missing 'anthropic' Python package. "
-        "Add 'pip install anthropic' to the workflow before running this script."
-    )
-    sys.exit(2)
-
-
 # ── Plugin rules ─────────────────────────────────────────────────────────────
 
 PLUGIN_RULES = {
@@ -55,16 +55,91 @@ PLUGIN_RULES = {
     "sx-leadership": {"require_no": True,  "require_en": False},
 }
 
-# Hard cap on trigger count per PR (cost protection)
-MAX_TRIGGERS_PER_PR = 100
-
-# Pinned model — classification is well within Haiku's capability
+# Suggestion generation only (never affects the verdict)
 MODEL = "claude-haiku-4-5"
+MAX_SUGGESTION_FILES = 20
+
+
+# ── Deterministic language classification ───────────────────────────────────
+#
+# A trigger counts as Norwegian if it contains æ/ø/å or any word from
+# NO_WORDS; as English if it contains any word from EN_WORDS. Everything
+# else is neutral (proper nouns, acronyms, shared technical terms) and
+# counts toward neither language. Words that exist in both languages or
+# are language-agnostic in tech speech (app, design, test, status, sprint)
+# are deliberately in NEITHER list.
+#
+# False negative (a genuinely Norwegian/English trigger classified
+# neutral)? Add the missing word here in a normal PR — the gate stays
+# deterministic forever after.
+
+_NO_CHARS = re.compile(r"[æøåÆØÅ]")
+
+NO_WORDS = {
+    # verbs / imperatives
+    "lag", "lage", "laget", "skriv", "skrive", "vis", "gi", "fiks", "fikse",
+    "rett", "endre", "bytt", "oppdater", "korriger", "teste", "sjekk",
+    "sjekke", "valider", "validere", "estimer", "estimere", "beregn",
+    "beregne", "kalkuler", "kalkulere", "forbered", "forberede", "publiser",
+    "publisere", "lansere", "forklar", "forklare", "vurder", "vurdere",
+    "kvalifiser", "generer", "generere", "oversett", "planlegg",
+    # nouns
+    "tilbud", "tilbudet", "pris", "prisen", "prisliste", "regneark",
+    "faktura", "brev", "rapport", "rapporten", "oversikt", "gjennomgang",
+    "bruker", "brukere", "brukertesting", "akseptansetest", "sikkerhetsjekk",
+    "kravspekk", "estimat", "estimatet", "timeestimat", "timer",
+    "retningslinjer", "brukeropplevelse", "systemtest", "integrasjon",
+    "integrasjoner", "kodebase", "kodebasen", "datamodell", "skjema",
+    "tabeller", "relasjoner", "skjermbilde", "skjermbilder", "prosjekt",
+    "prosjektet", "leveranse", "godkjenning", "innstillinger", "dokument",
+    "dokumenter", "mal", "maler", "referat", "grovestimat", "vurdering",
+    "henvendelse", "henvendelsen", "leaden", "budsjett", "kunde", "kunden",
+    "appen", "arkitekturen", "utvikling", "vedlikehold", "nettapp",
+    "nettside", "nettsiden", "progressiv",
+    # function words / determiners common in Norwegian trigger phrases
+    "hva", "hvordan", "hvilke", "hvilken", "denne", "dette", "disse",
+    "mitt", "min", "mine", "nytt", "nye", "med", "uten", "til", "ikke",
+    "norsk", "norske", "teknisk", "funksjonell", "delt",
+}
+
+EN_WORDS = {
+    # verbs / imperatives
+    "create", "make", "build", "write", "show", "generate", "update",
+    "check", "validate", "estimate", "calculate", "prepare", "publish",
+    "submit", "launch", "release", "explain", "assess", "qualify",
+    "translate", "plan", "review",
+    # nouns
+    "pricing", "price", "cost", "breakdown", "phase", "feature", "features",
+    "spreadsheet", "invoice", "letter", "report", "overview", "user",
+    "experience", "guidelines", "navigation", "codebase", "architecture",
+    "schema", "tables", "relations", "screen", "screens", "project",
+    "delivery", "approval", "settings", "document", "documents", "template",
+    "templates", "meeting", "proposal", "offer", "requirements", "budget",
+    "customer", "client", "inquiry", "lead", "assessment", "estimation",
+    "development", "maintenance",
+    # function words common in English trigger phrases
+    "what", "how", "which", "this", "these", "with", "without", "should",
+    "the", "new", "technical", "functional", "shared", "english",
+}
+
+_WORD_RE = re.compile(r"[a-zA-ZæøåÆØÅ]+")
+
+
+def classify_trigger(phrase: str) -> str:
+    """Deterministically classify one trigger phrase: 'no' | 'en' | 'neutral'."""
+    if _NO_CHARS.search(phrase):
+        return "no"
+    words = {w.lower() for w in _WORD_RE.findall(phrase)}
+    if words & NO_WORDS:
+        return "no"
+    if words & EN_WORDS:
+        return "en"
+    return "neutral"
 
 
 # ── Output helpers ───────────────────────────────────────────────────────────
 
-def fail(msg: str, code: int = 2) -> "None":
+def fail(msg: str, code: int = 2) -> None:
     print(f"::error::{msg}", file=sys.stderr)
     sys.exit(code)
 
@@ -110,6 +185,8 @@ _DESC_SINGLE_RE = re.compile(
 _DESC_BLOCK_RE = re.compile(
     r'^description:\s*[>|][^\n]*\n((?:[ \t].*\n?)+)', re.MULTILINE
 )
+# Unquoted single-line scalar: description: Some text without quotes.
+_DESC_PLAIN_RE = re.compile(r"^description:[ \t]*(?![\"'>|])(.+)$", re.MULTILINE)
 
 
 def parse_frontmatter_description(path: Path) -> str:
@@ -121,30 +198,47 @@ def parse_frontmatter_description(path: Path) -> str:
         return ""
     fm = fm_match.group(1)
 
-    # Try single-line "..." first
     sl = _DESC_SINGLE_RE.search(fm)
     if sl:
         return sl.group(2)
 
-    # Try block form: description: >\n  line1\n  line2
     bl = _DESC_BLOCK_RE.search(fm)
     if bl:
         lines = [line.strip() for line in bl.group(1).splitlines() if line.strip()]
         return " ".join(lines)
 
+    pl = _DESC_PLAIN_RE.search(fm)
+    if pl:
+        return pl.group(1).strip()
+
     return ""
 
 
+# Accepts the styles in use across the repos:
+#   "Trigger: 'a', 'b'"         (sx-core/sx-pm quoted style)
+#   "Trigger på: a, b"          (sx-business unquoted style)
+#   "Norske triggere: 'a', 'b'" (appended NO sections)
+_TRIGGER_SECTION_RE = re.compile(r"(?i)\btrigger[a-zæøå ]*:")
 _TRIGGER_QUOTED_RE = re.compile(r"['\"]([^'\"]+)['\"]")
 
 
 def extract_triggers(description: str) -> list[str]:
-    """Extract trigger phrases from the description's `Trigger:` section."""
-    idx = description.lower().find("trigger:")
-    if idx < 0:
+    """Extract trigger phrases from the first trigger-ish section onward.
+
+    Quoted phrases win; if a trigger section exists but contains no quoted
+    phrases, fall back to splitting the section text on commas (the
+    unquoted 'Trigger på: a, b' style)."""
+    m = _TRIGGER_SECTION_RE.search(description)
+    if not m:
         return []
-    trigger_text = description[idx + len("trigger:"):]
+    trigger_text = description[m.end():]
+
     raw = _TRIGGER_QUOTED_RE.findall(trigger_text)
+    if not raw:
+        # Unquoted style: comma-separated words/phrases to end of description.
+        raw = [p.strip(" .") for p in trigger_text.split(",")]
+        raw = [p for p in raw if p and len(p) <= 60]
+
     seen: set[str] = set()
     result: list[str] = []
     for phrase in raw:
@@ -155,71 +249,51 @@ def extract_triggers(description: str) -> list[str]:
     return result
 
 
-# ── Claude API ───────────────────────────────────────────────────────────────
+# ── Suggestions (optional, never affects the verdict) ───────────────────────
 
-CLASSIFY_PROMPT = """You are a Norwegian/English language classifier for STUDIO X plugin trigger phrases.
+SUGGEST_PROMPT = """For each file below, suggest 3-5 trigger phrases in the MISSING language(s) listed for it. The phrases must fit the skill's actual purpose (see description_excerpt) and be phrases a developer would naturally type.
 
-For each trigger phrase, classify the language as:
-- "no" — clearly Norwegian (Norwegian word, æøå chars, Norwegian compound/declension, Norwegian-specific concept)
-- "en" — clearly English (English word or phrase)
-- "neutral" — language-agnostic: proper noun (e.g. "BankID", "Supabase"), acronym (e.g. "RLS"), code identifier (e.g. ".env", "convex env"), technical term that's the same in both languages
-
-A file passes only if it has at least one trigger in each REQUIRED language for its plugin (see require_no / require_en flags per file). Neutral triggers don't count toward either language.
-
-For any file MISSING a required language, suggest 3-5 specific trigger phrases in that language that fit the skill's actual purpose (use the description_excerpt to understand what the skill does).
-
-Output a single JSON object only — no preamble, no commentary, no code fences.
+Output a single JSON object only — no preamble, no code fences:
+{{"files": [{{"path": "...", "suggestions": {{"no": [...], "en": [...]}}}}]}}
 
 Input:
 {input_json}
-
-Output schema:
-{{
-  "files": [
-    {{
-      "path": "string",
-      "missing": ["no" or "en"],     // empty array if file passes
-      "suggestions": {{               // present only if missing is non-empty
-        "no": ["phrase 1", "phrase 2", ...],
-        "en": ["phrase 1", "phrase 2", ...]
-      }}
-    }}
-  ]
-}}
 """
 
 
-def _strip_code_fences(text: str) -> str:
-    """Remove ```json ... ``` fences if the model wrapped its output."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*\n?", "", text)
-        text = re.sub(r"\n?```\s*$", "", text)
-    return text.strip()
-
-
-def classify_with_claude(files_data: list[dict]) -> dict:
-    """Send all files' triggers to Claude in one batched call."""
-    client = Anthropic()  # reads ANTHROPIC_API_KEY from env
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
-        messages=[{
-            "role": "user",
-            "content": CLASSIFY_PROMPT.format(
-                input_json=json.dumps(files_data, ensure_ascii=False, indent=2)
-            ),
-        }],
-    )
-    raw = response.content[0].text
-    cleaned = _strip_code_fences(raw)
+def generate_suggestions(failed_files: list[dict]) -> dict[str, dict]:
+    """Best-effort suggestion generation. Returns {path: {lang: [phrases]}}."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return {}
+    if len(failed_files) > MAX_SUGGESTION_FILES:
+        failed_files = failed_files[:MAX_SUGGESTION_FILES]
     try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        fail(
-            f"Claude returned invalid JSON: {e}\n"
-            f"--- raw response (first 2000 chars) ---\n{raw[:2000]}"
+        from anthropic import Anthropic
+
+        client = Anthropic()
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=2048,
+            temperature=0,
+            messages=[{
+                "role": "user",
+                "content": SUGGEST_PROMPT.format(
+                    input_json=json.dumps(failed_files, ensure_ascii=False)
+                ),
+            }],
         )
+        raw = response.content[0].text.strip()
+        raw = re.sub(r"^```(?:json)?\s*\n?", "", raw)
+        raw = re.sub(r"\n?```\s*$", "", raw)
+        data = json.loads(raw)
+        return {
+            f["path"]: f.get("suggestions", {})
+            for f in data.get("files", [])
+            if "path" in f
+        }
+    except Exception as e:  # suggestions are best-effort by design
+        warn(f"Suggestion generation failed ({type(e).__name__}: {e}) — verdict unaffected.")
+        return {}
 
 
 # ── Main flow ────────────────────────────────────────────────────────────────
@@ -240,13 +314,10 @@ def main() -> int:
 
     if is_fork:
         warn(
-            "PR is from a fork — secrets unavailable. Skipping bilingual trigger "
-            "validation. A maintainer must re-run after bringing the PR into the main repo."
+            "PR is from a fork — skipping bilingual trigger validation. "
+            "A maintainer must re-run after bringing the PR into the main repo."
         )
         return 0
-
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        fail("ANTHROPIC_API_KEY is not set. Configure it as a GitHub org secret.")
 
     changed = list_changed_skill_files(base_ref)
     if not changed:
@@ -255,75 +326,69 @@ def main() -> int:
 
     info(
         f"[{plugin}] Rule: require_no={rule['require_no']}, "
-        f"require_en={rule['require_en']}"
+        f"require_en={rule['require_en']} (deterministic verdict)"
     )
-    info(f"[{plugin}] {len(changed)} SKILL.md file(s) to check:")
 
-    files_data: list[dict] = []
-    total_triggers = 0
+    failures: list[dict] = []
     for path_str in changed:
         path = Path(path_str)
         if not path.exists():
             continue
         desc = parse_frontmatter_description(path)
         triggers = extract_triggers(desc)
-        info(f"  - {path_str} ({len(triggers)} triggers)")
-        files_data.append({
-            "path": path_str,
-            "description_excerpt": desc[:500],
-            "triggers": triggers,
-            "require_no": rule["require_no"],
-            "require_en": rule["require_en"],
-        })
-        total_triggers += len(triggers)
 
-    if total_triggers == 0:
-        info(f"[{plugin}] No triggers extracted from changed files. Skipping.")
-        return 0
+        langs = {classify_trigger(t) for t in triggers}
+        missing: list[str] = []
+        if rule["require_no"] and "no" not in langs:
+            missing.append("no")
+        if rule["require_en"] and "en" not in langs:
+            missing.append("en")
 
-    if total_triggers > MAX_TRIGGERS_PER_PR:
-        warn(
-            f"PR contains {total_triggers} trigger phrases (cap: {MAX_TRIGGERS_PER_PR}). "
-            f"Skipping LLM check for cost protection — manual review recommended."
-        )
-        return 0
-
-    info(f"[{plugin}] Classifying {total_triggers} trigger(s) via {MODEL}...")
-    result = classify_with_claude(files_data)
-
-    failures: list[tuple[str, list[str], dict]] = []
-    for f in result.get("files", []):
-        path = f.get("path", "?")
-        missing = f.get("missing") or []
-        suggestions = f.get("suggestions") or {}
+        if not triggers:
+            info(f"  ✗ {path_str}: no trigger section / no triggers found")
+        elif missing:
+            info(f"  ✗ {path_str}: {len(triggers)} triggers, langs={sorted(langs)}, missing={missing}")
+        else:
+            info(f"  ✓ {path_str}: {len(triggers)} triggers, langs={sorted(langs)}")
 
         if missing:
-            failures.append((path, missing, suggestions))
-            for lang in missing:
-                lang_full = "Norwegian" if lang == "no" else "English"
-                suggested = suggestions.get(lang, [])
-                msg = (
-                    f"{path}: trigger list is missing {lang_full} coverage. "
-                    f"Add at least one {lang_full} trigger to the description's "
-                    f"Trigger: section."
+            failures.append({
+                "path": path_str,
+                "missing": missing,
+                "description_excerpt": desc[:500],
+                "triggers": triggers,
+            })
+
+    if not failures:
+        info(f"\n[{plugin}] All {len(changed)} changed skill(s) pass bilingual trigger check.")
+        return 0
+
+    suggestions = generate_suggestions(failures)
+    for f in failures:
+        sugg = suggestions.get(f["path"], {})
+        for lang in f["missing"]:
+            lang_full = "Norwegian" if lang == "no" else "English"
+            msg = (
+                f"{f['path']}: trigger list is missing {lang_full} coverage "
+                f"(deterministic check: charset + word lists). Add at least one "
+                f"{lang_full} trigger to the description's Trigger: section."
+            )
+            phrases = sugg.get(lang, [])
+            if phrases:
+                msg += " Suggested: " + ", ".join(f"'{s}'" for s in phrases[:5])
+            else:
+                msg += (
+                    " If an existing trigger IS in this language, add its main "
+                    "word to the word list in validate-bilingual-triggers.py."
                 )
-                if suggested:
-                    quoted = ", ".join(f"'{s}'" for s in suggested[:5])
-                    msg += f" Suggested: {quoted}"
-                print(f"::error file={path}::{msg}")
-        else:
-            info(f"  ✓ {path} has all required languages")
+            print(f"::error file={f['path']}::{msg}")
 
-    if failures:
-        print()
-        print(
-            f"::error::Bilingual trigger validation failed for "
-            f"{len(failures)} of {len(files_data)} changed file(s). See annotations above."
-        )
-        return 1
-
-    info(f"\n[{plugin}] All {len(changed)} changed skill(s) pass bilingual trigger check.")
-    return 0
+    print()
+    print(
+        f"::error::Bilingual trigger validation failed for "
+        f"{len(failures)} of {len(changed)} changed file(s). See annotations above."
+    )
+    return 1
 
 
 if __name__ == "__main__":
